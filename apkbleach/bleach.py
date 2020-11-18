@@ -54,6 +54,7 @@ class ApkBleach:
 				f'{Fore.YELLOW}ICONS:\n'
 				f'\t{Fore.GREEN}BLEACH_4g_signal\n'
 				'\tBLEACH_settings\n'
+				'\tBLEACH_memory\n'
 				'\tBLEACH_signal\n'
 				'\tBLEACH_secure\n'
 				'\tBLEACH_android_studio\n'
