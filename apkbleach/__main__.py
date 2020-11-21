@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 
+'''
+Issues to fix:
+	spaghetti code like a mother!!!!!
+'''
+
 from .bleach import ApkBleach
 from colorama import Fore, Style
 import os
 import os.path
 from pyfiglet import figlet_format
+import subprocess
 import sys, itertools
 import threading
 from time import sleep
@@ -27,7 +33,7 @@ def main():
 	banner = figlet_format('ApkBleach', font='crawford')
 	print(Fore.BLUE)
 	print('\n'.join(l.center(os.get_terminal_size().columns) for l in banner.splitlines()))
-	print(f'\t\t\b\b{Fore.YELLOW}Version: {Fore.BLUE}2.0   {Fore.YELLOW}Author: {Fore.BLUE}graylagx2\n'.center(os.get_terminal_size().columns))
+	print(f'\t\t{Fore.YELLOW}Version: {Fore.BLUE}2.0   {Fore.YELLOW}Author: {Fore.BLUE}graylagx2\n'.center(os.get_terminal_size().columns))
 
 	start.check_dependencies()
 
@@ -64,18 +70,80 @@ def main():
 			start.icon_inject()
 			stop_spin = True
 			icon_inject_loading.join()
-			print("\n")
+			print("\n")		
 	except: 
 		pass
 
+	if start.deploy_all:
+		stop_spin = False
+		icon_inject_loading = threading.Thread(target=spin, args=(f"{Fore.YELLOW}Injecting icons ", f"{Fore.YELLOW}Icons injected{Fore.GREEN} [*]  "))
+		icon_inject_loading.start()
+		start.icon_inject()
+		stop_spin = True
+		icon_inject_loading.join()
+		print("\n")
 
-	start.rebuild_apk()
-	print(f"{Fore.YELLOW}Rebuilt apk {Fore.GREEN}[*] \n")
+		perms_needed = subprocess.call(['bash', '-c', f'sudo -n true 2>/dev/null'], stdout=subprocess.PIPE)
 
-	if os.path.isfile(start.output_file):
-		print(f"{Fore.YELLOW}ApkBleach complete {Fore.GREEN}[*]\n")
-		print(f"\t\t\b\b{Fore.GREEN}\033[4mApk saved as: {start.output_file}{Fore.WHITE}\033[0m".center(os.get_terminal_size().columns))
-		print('\n')
+		if perms_needed == 1:
+			print(f"{Fore.YELLOW}[ Warning ] Deployment server requires permissions\n")
+			subprocess.call(['bash', '-c', f'sudo /etc/init.d/apache2 status 1>/dev/null 2>/tmp/bleach_server_error.log'], stdout=subprocess.PIPE)
+			for repeat in range(3):
+				print("\033[A                                                                     \033[A")
+
+
+		stop_spin = False
+		rebuild_loading = threading.Thread(target=spin, args=(f"{Fore.YELLOW}Building server ", f"{Fore.YELLOW}Server Built{Fore.GREEN} [*]      "))
+		rebuild_loading.start()
+		start.rebuild_apk()
+		stop_spin = True
+		rebuild_loading.join()
+		print("\n")
+
+		if len(os.listdir('/var/www/html/Android-SE/msf_apps')) >= 8:
+		
+			run_server = ""
+			print(f"{Fore.YELLOW}Bleach server is running on localhost {Fore.GREEN} [*]\n\n")
+			print(f"\t\t{Fore.YELLOW}[{Fore.BLUE}Info{Fore.YELLOW}] {Fore.BLUE}Use ctrl+c to shut down the deployment server and restore defaults{Fore.BLACK}".center(os.get_terminal_size().columns))
+
+			while True:
+				try:
+					run_server = input()
+					print("\033[A   										\033[A")                                                            
+				except KeyboardInterrupt:
+					print('\n\n')
+					print(f"{Fore.YELLOW}[ Warning ] Deployment server is shutting down".center(os.get_terminal_size().columns))
+					if os.path.isdir('/var/www/html_backup'):
+						subprocess.call(['bash', '-c', f'sudo rm -r /var/www/html && sudo mv /var/www/html_backup /var/www/html'])
+					subprocess.call(['bash', '-c', f'sudo /etc/init.d/apache2 stop &>/dev/null'])
+					sleep(.5) 
+					print('\n') 
+					print(f"\t{Fore.YELLOW}[{Fore.GREEN}Complete{Fore.YELLOW}]\n{Fore.RESET}".center(os.get_terminal_size().columns))
+					sys.exit()
+		else:
+			print(f'\n{Fore.YELLOW}[{Fore.RED}Error{Fore.YELLOW}] Something went wrong in building the server files')
+			stop_spin = True
+			rebuild_loading.join()
+			print("\n")
+			sys.exit()
+
+	else:
+		stop_spin = False
+		rebuild_loading = threading.Thread(target=spin, args=(f"{Fore.YELLOW}Rebuilding apk ", f"{Fore.YELLOW}Apk rebuilt{Fore.GREEN} [*]       "))
+		rebuild_loading.start()
+		start.rebuild_apk()
+		stop_spin = True
+		rebuild_loading.join()
+		print("\n")
+
+	try:
+		if os.path.isfile(start.output_file):
+			print(f"{Fore.YELLOW}Rebuilt apk {Fore.GREEN}[*]")
+			print(f"\n{Fore.YELLOW}[{Fore.GREEN}Complete{Fore.YELLOW}]{Fore.RESET}")  
+			print(f"\t\t\b{Fore.GREEN}\033[4mApk saved as: {start.output_file}{Fore.WHITE}\033[0m".center(os.get_terminal_size().columns))
+			print('\n')
+	except:
+		pass
 
 if __name__ == "__main__":
 	main()
