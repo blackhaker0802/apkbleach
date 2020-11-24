@@ -137,6 +137,12 @@ def main():
 		print("\n")
 
 	try:
+		if not os.access(start.app_path, os.W_OK):
+			print(f"{Fore.YELLOW} Your output path is a root path and needs permissions to write to it [*]\n")
+			subprocess.call(['bash', '-c', f"sudo -k mv /tmp/apkbleach/{start.app_name}.apk {start.output_file} "], stdout=subprocess.PIPE)
+					
+			for repeat in range(3):
+				print("\033[A                                                                               \033[A")
 		if os.path.isfile(start.output_file):
 			print(f"{Fore.YELLOW}Rebuilt apk {Fore.GREEN}[*]")
 			print(f"\n{Fore.YELLOW}[{Fore.GREEN}Complete{Fore.YELLOW}]{Fore.RESET}")  
