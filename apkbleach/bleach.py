@@ -493,15 +493,4 @@ class ApkBleach:
 			subprocess.call(['bash', '-c', f'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -storepass password -keypass password -keystore /tmp/apkbleach/{self.app_name}.keystore /tmp/apkbleach/temp.apk {self.app_name} &>/dev/null'])
 			subprocess.call(['bash', '-c', f'zipalign -f 4 /tmp/apkbleach/temp.apk /tmp/apkbleach/{self.app_name}.apk'])
 
-			# Moving apk to output path
-			try:
-				test = self.output_file
-				if not os.access(self.app_path, os.W_OK):
-					print(f"{Fore.YELLOW} Your output path is a root path and needs permissions to write to it [*]\n")
-					subprocess.call(['bash', '-c', f"sudo -k mv /tmp/apkbleach/{self.app_name}.apk {self.output_file} "], stdout=subprocess.PIPE)
-					for repeat in range(3):
-								print("\033[A                                                                               \033[A")
-				else:
-					shutil.move(rf"/tmp/apkbleach/{self.app_name}.apk", rf"{self.output_file}")
-			except:
-				pass
+			
