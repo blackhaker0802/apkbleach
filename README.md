@@ -2,9 +2,7 @@
 
 **Update**
 
-   11/24/2020:
-   
-      Fixed custom icon injection bug and jarsigner installation bug! Shout out to @VioletChan on youtube for reporting the bug.
+   11/24/2020 Fixed custom icon injection bug and jarsigner installation bug! Shout out to @VioletChan on youtube for reporting the bug.
 
 ![Screen shot of sofware image](https://github.com/graylagx2/Images/blob/master/apkbleach2_final.png)
 
