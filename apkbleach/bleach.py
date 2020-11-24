@@ -96,6 +96,7 @@ class ApkBleach:
 			else:
 				try:
 					Image.open(self.icon).format
+					self.icon_path = self.icon
 				except FileNotFoundError:
 					sys.exit(f"\n{Fore.YELLOW}[{Fore.RED}Error{Fore.YELLOW}] Could not validate icon check spelling or path\n{Fore.WHITE}")
 				except:
@@ -184,8 +185,8 @@ class ApkBleach:
 				repeat_num = 3
 
 				if jarsigner != 0:
-					print(f"{Fore.YELLOW}This may take some time you're missing jarsigner please wait...\n")
-					subprocess.call(['bash', '-c', "sudo apt-get install default-jdk -y"], stdout=subprocess.PIPE)
+					print(f"{Fore.YELLOW}This may take a long time dont be alarmed! You're missing jarsigner which means default-jdk must be installed please wait...\n")
+					subprocess.call(['bash', '-c', "sudo apt-get install openjdk-14-jdk -y"], stdout=subprocess.PIPE)
 					repeat_num = 5
 
 
