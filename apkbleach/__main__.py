@@ -143,6 +143,9 @@ def main():
 					
 			for repeat in range(3):
 				print("\033[A                                                                               \033[A")
+		else:
+			subprocess.call(['bash', '-c', f"mv /tmp/apkbleach/{start.app_name}.apk {start.output_file} "], stdout=subprocess.PIPE)
+			
 		if os.path.isfile(start.output_file):
 			print(f"{Fore.YELLOW}Rebuilt apk {Fore.GREEN}[*]")
 			print(f"\n{Fore.YELLOW}[{Fore.GREEN}Complete{Fore.YELLOW}]{Fore.RESET}")  
